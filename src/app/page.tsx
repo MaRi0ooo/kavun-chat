@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Message = {
@@ -13,6 +13,13 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [message, setMessage] = useState("");
   const [username, setUsername] = useState("anon");
+
+  const chatRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   useEffect(() => {
     async function getMessages() {
@@ -63,7 +70,7 @@ export default function Home() {
   }
 
   return (
-    <main className="h-screen bg-indigo-800 text-green-400 p-4 flex flex-col">
+    <main className="h-screen bg-black text-green-400 p-4 flex flex-col">
       <h1 className="text-2xl mb-4">Kavun Chat</h1>
 
       <input
@@ -81,7 +88,7 @@ export default function Home() {
         ))}
       </div>
 
-      <div className="flex gap-2">
+      <div ref={chatRef} className="flex gap-2">
         <input
           className="flex-1 bg-black border border-green-400 p-2 outline-none"
           placeholder="message..."
