@@ -63,7 +63,7 @@ export default function Home() {
   }
 
   return (
-    <main className="h-screen bg-black text-green-400 p-4 flex flex-col">
+    <main className="h-screen bg-indigo-800 text-green-400 p-4 flex flex-col">
       <h1 className="text-2xl mb-4">Kavun Chat</h1>
 
       <input
