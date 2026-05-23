@@ -14,6 +14,7 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [username, setUsername] = useState("anon");
 
+  // Autoscroll down
   const chatRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (chatRef.current) {
@@ -21,6 +22,7 @@ export default function Home() {
     }
   }, [messages]);
 
+  // Loading + realtime
   useEffect(() => {
     async function getMessages() {
       const { data } = await supabase
@@ -45,13 +47,10 @@ export default function Home() {
           table: "messages",
         },
         (payload) => {
-          console.log("REALTIME EVENT:", payload);
           setMessages((current) => [...current, payload.new as Message]);
         },
       )
-      .subscribe((status) => {
-        console.log("SUBSCRIBE STATUS:", status);
-      });
+      .subscribe(() => {});
 
     return () => {
       supabase.removeChannel(channel);
@@ -69,6 +68,9 @@ export default function Home() {
     setMessage("");
   }
 
+  // ----------------------------------------
+  //  MAIN CHAT
+  // ----------------------------------------
   return (
     <main className="h-screen bg-black text-green-400 p-4 flex flex-col">
       <h1 className="text-2xl mb-4">Kavun Chat</h1>
@@ -80,24 +82,28 @@ export default function Home() {
         onChange={(e) => setUsername(e.target.value)}
       />
 
-      <div className="border border-green-400 flex-1 p-2 mb-4 overflow-y-auto">
-        {messages.map((msg) => (
-          <p key={msg.id}>
-            {msg.username}: {msg.text}
-          </p>
-        ))}
+      {/* CHAT CONTAINER */}
+      <div className="border border-green-400 flex-1 mb-4 flex flex-col">
+        <div ref={chatRef} className="flex-1 overflow-y-auto p-2 pr-3" hide-scrollbar="true">
+          {messages.map((msg) => (
+            <div key={msg.id} className="mb-1 font-mono">
+              <span className="text-green-300">{msg.username}</span>
+              <span className="text-green-500">: </span>
+              {msg.text}
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div ref={chatRef} className="flex gap-2">
+      {/* INPUT CONTAINER */}
+      <div className="flex gap-2">
         <input
           className="flex-1 bg-black border border-green-400 p-2 outline-none"
           placeholder="message..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              sendMessage();
-            }
+            if (e.key === "Enter") sendMessage();
           }}
         />
 
