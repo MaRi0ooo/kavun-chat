@@ -22,6 +22,13 @@ export default function Home() {
     }
   }, [messages]);
 
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages]);
+
   // Loading + realtime
   useEffect(() => {
     async function getMessages() {
@@ -72,7 +79,7 @@ export default function Home() {
   //  MAIN CHAT
   // ----------------------------------------
   return (
-    <main className="h-screen bg-black text-green-400 p-4 flex flex-col">
+    <main className="h-dvh bg-black text-green-400 p-4 flex flex-col overflow-hidden">
       <h1 className="text-2xl mb-4">Kavun Chat</h1>
 
       <input
@@ -83,15 +90,20 @@ export default function Home() {
       />
 
       {/* CHAT CONTAINER */}
-      <div className="border border-green-400 flex-1 mb-4 flex flex-col">
-        <div ref={chatRef} className="flex-1 overflow-y-auto p-2 pr-3" hide-scrollbar="true">
+      <div className="border border-green-400 flex-1 mb-4 flex flex-col overflow-hidden">
+        <div
+          ref={chatRef}
+          className="flex-1 overflow-y-auto p-2 pr-3 hide-scrollbar font-mono text-sm leading-relaxed"
+        >
           {messages.map((msg) => (
-            <div key={msg.id} className="mb-1 font-mono">
+            <div key={msg.id} className="mb-1 wrap-break-words">
               <span className="text-green-300">{msg.username}</span>
               <span className="text-green-500">: </span>
-              {msg.text}
+              <span className="text-green-100">{msg.text}</span>
             </div>
           ))}
+
+          <div ref={bottomRef} />
         </div>
       </div>
 
