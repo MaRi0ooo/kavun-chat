@@ -9,18 +9,185 @@ type Message = {
   created_at: string;
   profiles: {
     username: string;
-  }[];
+  } | null;
 };
+
+// ----------------------------------------
+//  LOGIN FORM
+// ----------------------------------------
+function LoginForm({
+  onSuccess,
+  switchToRegister,
+}: {
+  onSuccess: () => void;
+  switchToRegister: () => void;
+}) {
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+
+  async function handleLogin() {
+    let email = login;
+
+    if (!login.includes("@")) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("username", login)
+        .single();
+
+      if (!data?.email) {
+        alert("User not found");
+        return;
+      }
+      email = data.email;
+    }
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    onSuccess();
+  }
+
+  return (
+    <div>
+      <div className="mb-2">LOGIN:</div>
+
+      <input
+        className="bg-black border border-green-400 w-full p-2 mb-2"
+        placeholder="email or username"
+        value={login}
+        onChange={(e) => setLogin(e.target.value)}
+      />
+
+      <input
+        className="bg-black border border-green-400 w-full p-2 mb-2"
+        placeholder="password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <button
+        className="border border-green-400 w-full p-2 mb-2"
+        onClick={handleLogin}
+      >
+        ENTER
+      </button>
+
+      <button className="text-green-300" onClick={switchToRegister}>
+        register
+      </button>
+    </div>
+  );
+}
+
+// ----------------------------------------
+//  REGISTER FORM
+// ----------------------------------------
+function RegisterForm({
+  onSuccess,
+  switchToLogin,
+}: {
+  onSuccess: () => void;
+  switchToLogin: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+
+  async function register() {
+    if (!email || !password || !username) {
+      alert("fill all fields");
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    if (!data.user) {
+      alert("No user returned");
+      return;
+    }
+
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: data.user.id,
+      username,
+      email,
+    });
+
+    if (profileError) {
+      console.log(profileError);
+      alert(profileError.message);
+      return;
+    }
+
+    onSuccess();
+  }
+
+  return (
+    <div>
+      <div className="mb-2">REGISTER:</div>
+
+      <input
+        className="bg-black border border-green-400 w-full p-2 mb-2"
+        placeholder="username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+      />
+
+      <input
+        className="bg-black border border-green-400 w-full p-2 mb-2"
+        placeholder="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+
+      <input
+        className="bg-black border border-green-400 w-full p-2 mb-2"
+        placeholder="password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <button
+        className="border border-green-400 w-full p-2 mb-2"
+        onClick={register}
+      >
+        CREATE USER
+      </button>
+
+      <button className="text-green-300" onClick={switchToLogin}>
+        login
+      </button>
+    </div>
+  );
+}
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [message, setMessage] = useState("");
 
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  // const [loading, setLoading] = useState(false);
   const [lastMessageTime, setLastMessageTime] = useState(0);
   const [authMode, setAuthMode] = useState<
     "loading" | "login" | "register" | "ok"
   >("loading");
 
+  // Check Session
   useEffect(() => {
     async function checkSession() {
       const {
@@ -36,15 +203,12 @@ export default function Home() {
 
     checkSession();
   }, []);
-
-  const bottomRef = useRef<HTMLDivElement | null>(null);
   // Autoscroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
     });
   }, [messages]);
-
   // Loading + realtime
   useEffect(() => {
     async function getMessages() {
@@ -55,7 +219,7 @@ export default function Home() {
           id,
           text,
           created_at,
-          profiles (
+          profiles!messages_user_id_fkey (
             username
           )
           `,
@@ -63,7 +227,8 @@ export default function Home() {
         .order("created_at", { ascending: true });
 
       if (data) {
-        setMessages(data as Message[]);
+        console.log(data);
+        setMessages(data as unknown as Message[]);
       }
     }
 
@@ -89,6 +254,10 @@ export default function Home() {
     };
   }, []);
 
+  async function logout() {
+    await supabase.auth.signOut();
+    setAuthMode("login");
+  }
   async function sendMessage() {
     const now = Date.now();
 
@@ -120,60 +289,6 @@ export default function Home() {
     setLastMessageTime(now);
   }
 
-  function LoginForm({
-    onSuccess,
-    switchToRegister,
-  }: {
-    onSuccess: () => void;
-    switchToRegister: () => void;
-  }) {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-
-    async function login() {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (!error) onSuccess();
-    }
-
-    return (
-      <div>
-        <div className="mb-2">LOGIN:</div>
-
-        <input
-          className="bg-black border border-green-400 w-full p-2 mb-2"
-          placeholder="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          className="bg-black border border-green-400 w-full p-2 mb-2"
-          placeholder="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button
-          className="border border-green-400 w-full p-2 mb-2"
-          onClick={login}
-        >
-          ENTER
-        </button>
-
-        <button className="text-green-300" onClick={switchToRegister}>
-          register
-        </button>
-      </div>
-    );
-  }
-
-  //////////////////////////////////////////////////////////////// HTML ////////////////////////////////////////////////////////////////
-
   if (authMode !== "ok") {
     return (
       <main className="h-dvh bg-black text-green-400 p-4 font-mono flex items-center justify-center">
@@ -198,79 +313,20 @@ export default function Home() {
     );
   }
 
-  function RegisterForm({
-    onSuccess,
-    switchToLogin,
-  }: {
-    onSuccess: () => void;
-    switchToLogin: () => void;
-  }) {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [username, setUsername] = useState("");
-
-    async function register() {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error || !data.user) return;
-
-      await supabase.from("profiles").insert({
-        id: data.user.id,
-        username,
-      });
-
-      onSuccess();
-    }
-
-    return (
-      <div>
-        <div className="mb-2">REGISTER:</div>
-
-        <input
-          className="bg-black border border-green-400 w-full p-2 mb-2"
-          placeholder="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-
-        <input
-          className="bg-black border border-green-400 w-full p-2 mb-2"
-          placeholder="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          className="bg-black border border-green-400 w-full p-2 mb-2"
-          placeholder="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button
-          className="border border-green-400 w-full p-2 mb-2"
-          onClick={register}
-        >
-          CREATE USER
-        </button>
-
-        <button className="text-green-300" onClick={switchToLogin}>
-          login
-        </button>
-      </div>
-    );
-  }
-
   // ----------------------------------------
   //  MAIN CHAT
   // ----------------------------------------
   return (
     <main className="h-dvh bg-black text-green-400 p-4 flex flex-col overflow-hidden">
-      <h1 className="text-2xl mb-4">Kavun Chat</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl">Kavun Chat</h1>
+        <button
+          onClick={logout}
+          className="border border-green-400 px-3 py-1 hover:bg-green-400 hover:text-black transition"
+        >
+          logout
+        </button>
+      </div>
 
       {/* CHAT */}
       <div className="border border-green-400 flex-1 mb-4 flex flex-col overflow-hidden">
@@ -278,7 +334,7 @@ export default function Home() {
           {messages.map((msg) => (
             <div key={msg.id} className="mb-1 wrap-break-words">
               <span className="text-green-300">
-                {msg.profiles?.[0]?.username || "Anon"}
+                {msg.profiles?.username ?? "Anon"}
               </span>
               <span className="text-green-500">: </span>
               <span className="text-green-100">{msg.text}</span>
