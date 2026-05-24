@@ -242,11 +242,30 @@ export default function Home() {
           schema: "public",
           table: "messages",
         },
-        () => {
-          getMessages();
+        async (payload) => {
+          const msg = payload.new;
+
+          const { data } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", msg.user_id)
+            .single();
+
+          const newMessage: Message = {
+            id: msg.id,
+            text: msg.text,
+            created_at: msg.created_at,
+            profiles: {
+              username: data?.username || "Anon",
+            },
+          };
+
+          setMessages((prev) => [...prev, newMessage]);
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
