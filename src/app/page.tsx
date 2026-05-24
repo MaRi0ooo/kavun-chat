@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { error } from "console";
 
 type Message = {
   id: number;
@@ -236,13 +237,12 @@ export default function Home() {
       behavior: "smooth",
     });
   }, [messages]);
-  // Loading + realtime
-  useEffect(() => {
-    async function getMessages() {
-      const { data } = await supabase
-        .from("messages")
-        .select(
-          `
+
+  async function getMessages() {
+    const { data } = await supabase
+      .from("messages")
+      .select(
+        `
         id,
         text,
         created_at,
@@ -250,24 +250,36 @@ export default function Home() {
           username
         )
       `,
-        )
-        .order("created_at", { ascending: true });
+      )
+      .order("created_at", { ascending: true });
 
-      if (data) {
-        const formattedMessages: Message[] = (data as Message[]).map((msg) => ({
-          id: msg.id,
-          text: msg.text,
-          created_at: msg.created_at,
-          profiles: Array.isArray(msg.profiles)
-            ? msg.profiles[0] || null
-            : msg.profiles,
-        }));
+    // if (data) {
+    //   const formattedMessages: Message[] = (data as Message[]).map((msg) => ({
+    //     id: msg.id,
+    //     text: msg.text,
+    //     created_at: msg.created_at,
+    //     profiles: Array.isArray(msg.profiles)
+    //       ? msg.profiles[0] || null
+    //       : msg.profiles,
+    //   }));
 
-        setMessages(formattedMessages);
-      }
+    if (error) {
+      console.log(error);
+      return;
     }
 
-    getMessages();
+    if (data) {
+      setMessages(data as Message[]);
+    }
+  }
+
+  // Loading + realtime
+  useEffect(() => {
+    const loadMessages = async () => {
+      await getMessages();
+    };
+
+    loadMessages();
 
     const channel = supabase
       .channel("chat-room")
@@ -279,29 +291,9 @@ export default function Home() {
           table: "messages",
         },
         async (payload) => {
+          await getMessages();
+
           const msg = payload.new;
-
-          const { data: profile, error } = await supabase
-            .from("profiles")
-            .select("username")
-            .eq("id", msg.user_id)
-            .single();
-
-          console.log("PROFILE:", profile);
-          console.log("PROFILE ERROR:", error);
-
-          const newMessage: Message = {
-            id: msg.id,
-            text: msg.text,
-            created_at: msg.created_at,
-            profiles: profile
-              ? {
-                  username: profile.username,
-                }
-              : null,
-          };
-
-          setMessages((prev) => [...prev, newMessage]);
 
           const {
             data: { user },
@@ -318,7 +310,7 @@ export default function Home() {
             audio.play();
 
             new Notification("Kavun Chat", {
-              body: msg.text,
+              body: "New message",
               icon: "/icon.png",
             });
           }
@@ -394,6 +386,16 @@ export default function Home() {
     );
   }
 
+  function getUsername(message: Message) {
+    if (!message.profiles) return "Anon";
+
+    if (Array.isArray(message.profiles)) {
+      return message.profiles[0]?.username ?? "Anon";
+    }
+
+    return message.profiles.username;
+  }
+
   // ----------------------------------------
   //  MAIN CHAT
   // ----------------------------------------
@@ -414,11 +416,7 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto p-2 hide-scrollbar font-mono text-sm">
           {messages.map((msg) => (
             <div key={msg.id} className="mb-1 wrap-break-words">
-              <span className="text-green-300">
-                {Array.isArray(msg.profiles)
-                  ? (msg.profiles[0]?.username ?? "Anon")
-                  : (msg.profiles?.username ?? "Anon")}
-              </span>
+              <span className="text-green-300">{getUsername(msg)}</span>
               <span className="text-green-500">: </span>
               <span className="text-green-100">{msg.text}</span>
             </div>
