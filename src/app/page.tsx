@@ -186,6 +186,26 @@ export default function Home() {
     "loading" | "login" | "register" | "ok"
   >("loading");
 
+  const [hasNewMessage, setHasNewMessage] = useState(false);
+
+  // Notification Permission
+  useEffect(() => {
+    Notification.requestPermission();
+  }, []);
+
+  useEffect(() => {
+    document.title = hasNewMessage ? "☀ New Message" : "Kavun Chat";
+  }, [hasNewMessage]);
+
+  useEffect(() => {
+    const resetTitle = () => setHasNewMessage(false);
+
+    window.addEventListener("focus", resetTitle);
+
+    return () => {
+      window.removeEventListener("focus", resetTitle);
+    };
+  }, []);
   // Check Session
   useEffect(() => {
     async function checkSession() {
@@ -242,8 +262,28 @@ export default function Home() {
           schema: "public",
           table: "messages",
         },
-        () => {
+
+        (payload) => {
           getMessages();
+
+          const msg = payload.new;
+
+          supabase.auth.getUser().then(({ data }) => {
+            if (
+              msg.user_id !== data.user?.id &&
+              Notification.permission === "granted"
+            ) {
+              const audio = new Audio("/notify.mp3");
+
+              setHasNewMessage(true);
+              audio.play();
+
+              new Notification("Kavun Chat", {
+                body: msg.text,
+                icon: "/icon.png",
+              });
+            }
+          });
         },
       )
       .subscribe();
