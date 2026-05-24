@@ -406,7 +406,7 @@ export default function Home() {
 
           <button
             disabled={sending}
-            className="cursor-pointer border border-green-400 px-4 disabled:opacity-50"
+            className="cursor-pointer border border-green-400 px-4 hover:bg-green-400 hover:text-black transition"
             onClick={sendMessage}
           >
             send
