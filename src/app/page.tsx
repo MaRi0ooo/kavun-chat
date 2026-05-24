@@ -252,16 +252,6 @@ export default function Home() {
       )
       .order("created_at", { ascending: true });
 
-    // if (data) {
-    //   const formattedMessages: Message[] = (data as Message[]).map((msg) => ({
-    //     id: msg.id,
-    //     text: msg.text,
-    //     created_at: msg.created_at,
-    //     profiles: Array.isArray(msg.profiles)
-    //       ? msg.profiles[0] || null
-    //       : msg.profiles,
-    //   }));
-
     if (data) {
       setMessages(data as Message[]);
     }
@@ -347,10 +337,14 @@ export default function Home() {
       return;
     }
 
-    await supabase.from("messages").insert({
+    const { error } = await supabase.from("messages").insert({
       user_id: user.id,
       text: trimmed,
     });
+
+    if (!error) {
+      await getMessages();
+    }
 
     setMessage("");
     lastMessageTimeRef.current = now;
