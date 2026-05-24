@@ -10,6 +10,9 @@ type Message = {
   profiles:
     | {
         username: string;
+      }
+    | {
+        username: string;
       }[]
     | null;
 };
@@ -251,7 +254,16 @@ export default function Home() {
         .order("created_at", { ascending: true });
 
       if (data) {
-        setMessages(data as Message[]);
+        const formattedMessages: Message[] = (data as Message[]).map((msg) => ({
+          id: msg.id,
+          text: msg.text,
+          created_at: msg.created_at,
+          profiles: Array.isArray(msg.profiles)
+            ? msg.profiles[0] || null
+            : msg.profiles,
+        }));
+
+        setMessages(formattedMessages);
       }
     }
 
@@ -279,11 +291,9 @@ export default function Home() {
             id: msg.id,
             text: msg.text,
             created_at: msg.created_at,
-            profiles: [
-              {
-                username: data?.username || "Anon",
-              },
-            ],
+            profiles: {
+              username: data?.username || "Anon",
+            },
           };
 
           setMessages((prev) => [...prev, newMessage]);
@@ -398,7 +408,9 @@ export default function Home() {
           {messages.map((msg) => (
             <div key={msg.id} className="mb-1 wrap-break-words">
               <span className="text-green-300">
-                {msg.profiles?.[0]?.  username ?? "Anon"}
+                {Array.isArray(msg.profiles)
+                  ? (msg.profiles[0]?.username ?? "Anon")
+                  : (msg.profiles?.username ?? "Anon")}
               </span>
               <span className="text-green-500">: </span>
               <span className="text-green-100">{msg.text}</span>
