@@ -285,15 +285,13 @@ export default function Home() {
             .from("profiles")
             .select("username")
             .eq("id", msg.user_id)
-            .single();
+            .maybeSingle();
 
           const newMessage: Message = {
             id: msg.id,
             text: msg.text,
             created_at: msg.created_at,
-            profiles: {
-              username: data?.username || "Anon",
-            },
+            profiles: null,
           };
 
           setMessages((prev) => [...prev, newMessage]);
