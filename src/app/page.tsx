@@ -270,7 +270,7 @@ export default function Home() {
     getMessages();
 
     const channel = supabase
-      .channel("db-changes")
+      .channel("chat-room")
       .on(
         "postgres_changes",
         {
@@ -281,38 +281,47 @@ export default function Home() {
         async (payload) => {
           const msg = payload.new;
 
-          const { data } = await supabase
+          const { data: profile, error } = await supabase
             .from("profiles")
             .select("username")
             .eq("id", msg.user_id)
-            .maybeSingle();
+            .single();
+
+          console.log("PROFILE:", profile);
+          console.log("PROFILE ERROR:", error);
 
           const newMessage: Message = {
             id: msg.id,
             text: msg.text,
             created_at: msg.created_at,
-            profiles: null,
+            profiles: profile
+              ? {
+                  username: profile.username,
+                }
+              : null,
           };
 
           setMessages((prev) => [...prev, newMessage]);
 
-          supabase.auth.getUser().then(({ data }) => {
-            if (
-              msg.user_id !== data.user?.id &&
-              Notification.permission === "granted"
-            ) {
-              const audio = new Audio("/notify.mp3");
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
 
-              setHasNewMessage(true);
+          if (
+            msg.user_id !== user?.id &&
+            Notification.permission === "granted"
+          ) {
+            const audio = new Audio("/notify.mp3");
 
-              audio.play();
+            setHasNewMessage(true);
 
-              new Notification("Kavun Chat", {
-                body: msg.text,
-                icon: "/icon.png",
-              });
-            }
-          });
+            audio.play();
+
+            new Notification("Kavun Chat", {
+              body: msg.text,
+              icon: "/icon.png",
+            });
+          }
         },
       )
       .subscribe((status) => {
