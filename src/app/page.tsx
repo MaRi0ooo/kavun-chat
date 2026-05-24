@@ -73,13 +73,16 @@ function LoginForm({
       />
 
       <button
-        className="border border-green-400 w-full p-2 mb-2"
+        className="cursor-pointer border border-green-400 w-full p-2 mb-2 hover:bg-green-400 hover:text-black transition"
         onClick={handleLogin}
       >
         ENTER
       </button>
 
-      <button className="text-green-300" onClick={switchToRegister}>
+      <button
+        className="cursor-pointer text-green-300"
+        onClick={switchToRegister}
+      >
         register
       </button>
     </div>
@@ -180,23 +183,24 @@ export default function Home() {
   const [message, setMessage] = useState("");
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  // const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+
   const [lastMessageTime, setLastMessageTime] = useState(0);
   const [authMode, setAuthMode] = useState<
     "loading" | "login" | "register" | "ok"
   >("loading");
 
+  const MAX_LENGTH = 200;
+  const lastMessageTimeRef = useRef(0);
   const [hasNewMessage, setHasNewMessage] = useState(false);
 
   // Notification Permission
   useEffect(() => {
     Notification.requestPermission();
   }, []);
-
   useEffect(() => {
     document.title = hasNewMessage ? "☀ New Message" : "Kavun Chat";
   }, [hasNewMessage]);
-
   useEffect(() => {
     const resetTitle = () => setHasNewMessage(false);
 
@@ -300,34 +304,36 @@ export default function Home() {
   async function sendMessage() {
     const now = Date.now();
 
-    // cooldown 1.5 sec
-    if (now - lastMessageTime < 1500) return;
+    if (sending) return;
+    if (now - lastMessageTimeRef.current < 1500) return;
 
-    // empty
-    if (!message.trim()) return;
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    if (trimmed.length > 200) return;
 
-    // maxs length
-    if (message.length > 200) return;
-
-    // duplicate spam
     const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.text === message) return;
+    if (lastMsg?.text?.trim() === message.trim()) return;
+
+    setSending(true);
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user || !message.trim()) return;
+    if (!user) {
+      setSending(false);
+      return;
+    }
 
     await supabase.from("messages").insert({
       user_id: user.id,
-      text: message,
+      text: trimmed,
     });
 
     setMessage("");
-    setLastMessageTime(now);
+    lastMessageTimeRef.current = now;
+    setSending(false);
   }
-
   if (authMode !== "ok") {
     return (
       <main className="h-dvh bg-black text-green-400 p-4 font-mono flex items-center justify-center">
@@ -356,19 +362,19 @@ export default function Home() {
   //  MAIN CHAT
   // ----------------------------------------
   return (
-    <main className="h-dvh bg-black text-green-400 p-4 flex flex-col overflow-hidden">
+    <main className="h-dvh bg-[url(/bg.png)] bg-center bg-contain text-green-400 p-4 flex flex-col overflow-hidden">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl">Kavun Chat</h1>
         <button
           onClick={logout}
-          className="border border-green-400 px-3 py-1 hover:bg-green-400 hover:text-black transition"
+          className="cursor-pointer border border-green-400 px-3 py-1 hover:bg-green-400 hover:text-black transition"
         >
           logout
         </button>
       </div>
 
       {/* CHAT */}
-      <div className="border border-green-400 flex-1 mb-4 flex flex-col overflow-hidden">
+      <div className="border border-green-400 flex-1 mb-4 flex flex-col overflow-hidden bg-black/75">
         <div className="flex-1 overflow-y-auto p-2 hide-scrollbar font-mono text-sm">
           {messages.map((msg) => (
             <div key={msg.id} className="mb-1 wrap-break-words">
@@ -385,20 +391,35 @@ export default function Home() {
       </div>
 
       {/* INPUT */}
-      <div className="flex gap-2">
-        <input
-          className="flex-1 bg-black border border-green-400 p-2 outline-none"
-          placeholder="message..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") sendMessage();
-          }}
-        />
+      <div>
+        <div className="flex gap-2">
+          <input
+            className="flex-1 bg-black border border-green-400 p-2 outline-none"
+            placeholder="message..."
+            value={message}
+            maxLength={MAX_LENGTH}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") sendMessage();
+            }}
+          />
 
-        <button className="border border-green-400 px-4" onClick={sendMessage}>
-          send
-        </button>
+          <button
+            disabled={sending}
+            className="cursor-pointer border border-green-400 px-4 disabled:opacity-50"
+            onClick={sendMessage}
+          >
+            send
+          </button>
+        </div>
+
+        <div
+          className={`text-xs ${
+            message.length > 180 ? "text-red-400" : "text-green-500"
+          }`}
+        >
+          {message.length} / {MAX_LENGTH}
+        </div>
       </div>
     </main>
   );
