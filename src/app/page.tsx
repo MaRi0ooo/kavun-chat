@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { error } from "console";
 
 type Message = {
   id: number;
@@ -262,11 +261,6 @@ export default function Home() {
     //       ? msg.profiles[0] || null
     //       : msg.profiles,
     //   }));
-
-    if (error) {
-      console.log(error);
-      return;
-    }
 
     if (data) {
       setMessages(data as Message[]);
